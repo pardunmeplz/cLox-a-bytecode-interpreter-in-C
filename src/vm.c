@@ -95,6 +95,7 @@ static InterpretResult run(){
 }
 
 InterpretResult interpret(const char* source){
+  printf("%s", source);
   compile(source);
   return INTERPRET_OK;
   //vm.chunk = chunk;
