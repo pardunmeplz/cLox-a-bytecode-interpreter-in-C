@@ -10,6 +10,11 @@ typedef struct{
 }Parser;
 
 Parser parser;
+Chunk* compilingChunk;
+
+static Chunk* currentChunk(){
+  return compilingChunk;
+}
 
 static void error(const char* message, Token* token){
   // panic mode
@@ -32,6 +37,7 @@ static void error(const char* message, Token* token){
   parser.hasError = true;
 }
 
+// --- parser logic
 static void advance(){
   parser.previous = parser.current;
 
@@ -56,14 +62,33 @@ static void expression(){
   //todo: implement parsing expressions
 }
 
+// --- compiler logic
+static void emitByte(uint8_t byte){
+  writeChunk(currentChunk(), byte, parser.previous.line);
+}
+
+static void emitBytes(uint8_t byte, uint8_t byte2){
+  // trusting the book saying this will be convinient later....
+  emitByte(byte);
+  emitByte(byte2);
+}
+
+static void endCompiler(){
+  emitByte(OP_RETURN);
+}
+
+
 bool compile(const char* source, Chunk* chunk){
   initScanner(source);
+  compilingChunk = chunk;
+
   parser.hasError = false;
   parser.panicMode = false;
 
   advance();
   expression();
   consume(TOKEN_EOF, "Expected end of file");
+  endCompiler();
 
   return !parser.hasError;
 }
