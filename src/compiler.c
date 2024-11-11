@@ -2,19 +2,68 @@
 #include "../include/scanner.h"
 #include <stdio.h>
 
-void compile(const char* source){
-  initScanner(source);
-  int line = -1;
-  for(;;){
-    Token token = scanToken();
-    if(token.line != line) {
-      printf("%d ", token.line);
-      line = token.line;
-    } else {
-      printf("| ");
-    }
+typedef struct{
+  Token previous;
+  Token current;
+  bool hasError;
+  bool panicMode;
+}Parser;
 
-    printf("%2d %.*s\n", token.type, token.length, token.start);
-    if(token.type == TOKEN_EOF) break;
-  } 
+Parser parser;
+
+static void error(const char* message, Token* token){
+  // panic mode
+  if(parser.panicMode) return;
+  parser.panicMode = true;
+
+  // print line number
+  fprintf(stderr, "[line %d] Error", token->line);
+  
+  // print token lexme or human redable alternative
+  if(token->type == TOKEN_EOF){
+    fprintf(stderr, " at end");
+  } else if(token->type == TOKEN_ERROR){
+  } else {
+    fprintf(stderr, " at '%.*s'", token->length, token->start); 
+  }
+
+  // print message
+  fprintf(stderr, ": %s\n", message);
+  parser.hasError = true;
+}
+
+static void advance(){
+  parser.previous = parser.current;
+
+  for(;;){
+    parser.current = scanToken();
+    if(parser.current.type != TOKEN_ERROR) break;
+
+    error(parser.current.start, &parser.previous);
+  }
+}
+
+static void consume(TokenType type, char* message){
+  if(parser.current.type == type){
+    advance();
+    return;
+  }
+
+  error(message, &parser.current);
+}
+
+static void expression(){
+  //todo: implement parsing expressions
+}
+
+bool compile(const char* source, Chunk* chunk){
+  initScanner(source);
+  parser.hasError = false;
+  parser.panicMode = false;
+
+  advance();
+  expression();
+  consume(TOKEN_EOF, "Expected end of file");
+
+  return !parser.hasError;
 }
