@@ -77,8 +77,8 @@ static void skipWhiteSpace(){
         break;
       // comments
       case '/':
-        if(!match('/'))return;
-        while(peekNext()!= '\n' && !isAtEnd()) advance();
+        if(peekNext() != '/')return;
+        while(peek()!= '\n' && !isAtEnd()) advance();
         break;
       default: return;
     }

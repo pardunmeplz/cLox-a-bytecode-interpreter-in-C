@@ -6,6 +6,9 @@
 
 typedef enum{
   OP_CONSTANT, // load a constant value for use
+  OP_NIL,
+  OP_TRUE,
+  OP_FALSE,
   OP_ADD,
   OP_SUBTRACT,
   OP_MULTIPLY,
