@@ -1,6 +1,5 @@
 #include "../include/scanner.h"
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 
 typedef struct{
@@ -164,7 +163,6 @@ static Token keyword(){
 
   return makeToken(TOKEN_IDENTIFIER);
 }
-
 
 // plop out a token on each call
 Token scanToken(){

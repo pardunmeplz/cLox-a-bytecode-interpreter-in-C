@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "../include/debug.h"
+#include "../include/value.h"
 
 typedef void (*ParseFn)();
 
@@ -105,6 +107,11 @@ static void emitBytes(uint8_t byte, uint8_t byte2){
 
 static void endCompiler(){
   emitByte(OP_RETURN);
+  #ifdef DEBUG_PRINT_CODE
+  if(!parser.hasError){
+    disassembleChunk(currentChunk(), "code");
+  }
+  #endif /* ifdef DEBUG_PRINT_CODE */
 }
 
 static void expression(){
@@ -133,7 +140,7 @@ static void emitConstant(Value value){
 
 static void number(){
   double value = strtod(parser.previous.start, NULL);
-  emitConstant(value);
+  emitConstant(NUMBER_VAL(value));
 }
 
 static void unary(){
