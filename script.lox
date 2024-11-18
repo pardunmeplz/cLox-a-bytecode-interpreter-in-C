@@ -1,4 +1,3 @@
 // test comment
 
-
-12 /2 +6 *1 == 12
+"test message 1" + ": " + "This is a test"
