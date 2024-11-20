@@ -11,19 +11,20 @@
 #include "value.h"
 
 typedef struct {
-  ObjString* key;
+  ObjString *key;
   Value value;
 } Entry;
 
-typedef struct{
+typedef struct {
   int count;
   int capacity;
-  Entry* entries;
+  Entry *entries;
 } Table;
 
-void initTable(Table* table);
-void freeTable(Table* table);
-bool tableSet(Table* table, ObjString* key, Value value);
-void tableAddAll(Table* from, Table* to);
+void initTable(Table *table);
+void freeTable(Table *table);
+bool tableSet(Table *table, ObjString *key, Value value);
+void tableAddAll(Table *from, Table *to);
+bool tableGet(Table *table, ObjString *key, Value *value);
 
 #endif // !clox_table_h

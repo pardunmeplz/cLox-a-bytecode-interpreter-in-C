@@ -1,3 +1,6 @@
 // test comment
 
-"test message 1" + ": " + "This is a test"
+var a = "testing variables";
+var b = ": this is a test";
+
+print a + b;
