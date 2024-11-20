@@ -5,10 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#define ALLOCATE_OBJ(type,objectType) (type*)allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(type, objectType)                                         \
+  (type *)allocateObject(sizeof(type), objectType)
 
-static Obj* allocateObject(size_t size, ObjType type){
-  Obj* object = (Obj*)reallocate(NULL, 0, size);
+static Obj *allocateObject(size_t size, ObjType type) {
+  Obj *object = (Obj *)reallocate(NULL, 0, size);
   object->type = type;
 
   object->next = vm.objects;
@@ -16,28 +17,80 @@ static Obj* allocateObject(size_t size, ObjType type){
   return object;
 }
 
-static ObjString* allocateString(char* chars, int length){
-  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+// FNV-1a hashing algo to get dem strings hashed
+static uint32_t hashString(const char *key, int length) {
+  uint32_t hash = 2166136261u;
+  for (int i = 0; i < length; i++) {
+    hash ^= (uint8_t)key[i];
+    hash *= 16777619;
+  }
+  return hash;
+}
+
+static ObjString *allocateString(char *chars, int length, uint32_t hash) {
+  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
   string->chars = chars;
+  string->hash = hash;
+  tableSet(&vm.strings, string, NIL_VAL);
   return string;
 }
 
-ObjString* copyString(const char* chars, int length){
-  char* heapChars = ALLOCATE(char, length+1);
-  memcpy(heapChars, chars, length);
-  heapChars[length] = '\0';
-  return allocateString(heapChars, length);
-}
+ObjString *tableFindString(Table *table, const char *chars, int length,
+                           uint32_t hash) {
+  // no table then return
+  if (table->count == 0)
+    return NULL;
 
-void printObject(Value value){
-  switch (OBJ_TYPE(value)){
-    case OBJ_STRING:
-      printf("%s", AS_CSTRING(value));
-      break;
+  // map hash to hashtable array
+  uint32_t index = hash % table->capacity;
+
+  // find match
+  for (;;) {
+    Entry *entry = &table->entries[index];
+    if (entry->key == NULL) {
+      if (IS_NIL(entry->value)) {
+        return NULL;
+      }
+
+    } else if (entry->key->length == length && entry->key->hash == hash &&
+               entry->key->length == length &&
+               memcmp(entry->key->chars, chars, length) == 0) {
+      return entry->key;
+    }
+    index = (index + 1) % table->capacity;
   }
 }
 
-ObjString* takeString(char* chars, int length){
-  return allocateString(chars, length);
+ObjString *copyString(const char *chars, int length) {
+  uint32_t hash = hashString(chars, length);
+
+  ObjString *interned = tableFindString(&vm.strings, chars, length, hash);
+  if (interned != NULL)
+    return interned;
+
+  char *heapChars = ALLOCATE(char, length + 1);
+  memcpy(heapChars, chars, length);
+  heapChars[length] = '\0';
+  return allocateString(heapChars, length, hash);
+}
+
+void printObject(Value value) {
+  switch (OBJ_TYPE(value)) {
+  case OBJ_STRING:
+    printf("%s", AS_CSTRING(value));
+    break;
+  }
+}
+
+ObjString *takeString(char *chars, int length) {
+  uint32_t hash = hashString(chars, length);
+
+  ObjString *interned = tableFindString(&vm.strings, chars, length, hash);
+  if (interned != NULL) {
+    FREE_ARRAY(char, chars, length + 1);
+    return interned;
+  }
+
+  return allocateString(chars, length, hash);
 }
