@@ -102,9 +102,16 @@ static InterpretResult run() {
     switch (instruction = READ_BYTE()) {
 
     case OP_RETURN:
+      return INTERPRET_OK;
+
+    case OP_POP:
+      pop();
+      break;
+
+    case OP_PRINT:
       printValue(pop());
       printf("\n");
-      return INTERPRET_OK;
+      break;
 
     case OP_NEGATE:
       if (!IS_NUMBER(peek(0))) {
