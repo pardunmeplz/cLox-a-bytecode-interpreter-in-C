@@ -20,7 +20,7 @@ void freeTable(Table *table) {
 
 // liner probing to find value
 static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
-  uint32_t index = key->hash;
+  uint32_t index = key->hash % capacity;
   Entry *tombstone = NULL;
   for (;;) {
     Entry *entry = &entries[index];
