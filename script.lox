@@ -6,13 +6,10 @@ var b = ": this is a test";
 var a =  "test 2";
 
 {
- var a = 12;
- if(a> 12){
-  print a;
- } else {
-  print b;
- }
+ var a = nil;
 
+  print a and "true";
+  print a or "false";
 }
 
 print a + b;
