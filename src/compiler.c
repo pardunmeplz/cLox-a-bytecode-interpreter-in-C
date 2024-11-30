@@ -144,6 +144,13 @@ static int emitJump(uint8_t instruction) {
   return currentChunk()->count - 2;
 }
 
+static void emitLoop(uint16_t start) {
+  emitByte(OP_LOOP);
+  int offset = currentChunk()->count - start + 2;
+  emitByte((offset >> 8) & 0xff);
+  emitByte(offset & 0xff);
+}
+
 static void patchJump(uint8_t slot) {
   uint16_t gap = currentChunk()->count - slot - 2;
 
@@ -242,6 +249,22 @@ static void endScope() {
   }
 }
 
+static void whileStatement() {
+  uint16_t loopStart = currentChunk()->count;
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after while");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition");
+
+  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+
+  statement();
+  emitLoop(loopStart);
+
+  patchJump(exitJump);
+  emitByte(OP_POP);
+}
+
 static void ifStatement() {
   consume(TOKEN_LEFT_PAREN, "Expect '(' after if");
   expression();
@@ -272,6 +295,8 @@ static void statement() {
     endScope();
   } else if (match(TOKEN_IF)) {
     ifStatement();
+  } else if (match(TOKEN_WHILE)) {
+    whileStatement();
   } else {
     expressionStatement();
   }
