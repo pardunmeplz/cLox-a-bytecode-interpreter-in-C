@@ -137,6 +137,24 @@ static void emitBytes(uint8_t byte, uint8_t byte2) {
   emitByte(byte2);
 }
 
+static int emitJump(uint8_t instruction) {
+  emitByte(instruction);
+  emitByte(0xff);
+  emitByte(0xff);
+  return currentChunk()->count - 2;
+}
+
+static void patchJump(uint8_t slot) {
+  uint16_t gap = currentChunk()->count - slot - 2;
+
+  if (gap > UINT16_MAX) {
+    error("max jump limit exceeded", &parser.current);
+  }
+
+  currentChunk()->code[slot] = (gap >> 8) & 0xff;
+  currentChunk()->code[slot + 1] = gap & 0xff;
+}
+
 static void endCompiler() {
   emitByte(OP_RETURN);
 #ifdef DEBUG_PRINT_CODE
@@ -224,6 +242,26 @@ static void endScope() {
   }
 }
 
+static void ifStatement() {
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after if");
+  expression();
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition");
+
+  int thenJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  statement();
+
+  int elseJump = emitJump(OP_JUMP);
+
+  patchJump(thenJump);
+  emitByte(OP_POP);
+
+  if (match(TOKEN_ELSE)) {
+    statement();
+  }
+  patchJump(elseJump);
+}
+
 static void statement() {
 
   if (match(TOKEN_PRINT)) {
@@ -232,6 +270,8 @@ static void statement() {
     beginScope();
     block();
     endScope();
+  } else if (match(TOKEN_IF)) {
+    ifStatement();
   } else {
     expressionStatement();
   }
@@ -369,11 +409,11 @@ static void binary(bool canAssign) {
     emitByte((OP_EQUAL));
     break;
   case TOKEN_GREATER:
-    emitByte((OP_LESS));
-    emitByte((OP_NOT));
+    emitByte((OP_GREATER));
     break;
   case TOKEN_GREATER_EQUAL:
-    emitByte((OP_GREATER));
+    emitByte((OP_LESS));
+    emitByte((OP_NOT));
     break;
   case TOKEN_LESS:
     emitByte((OP_LESS));

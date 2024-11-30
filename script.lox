@@ -3,12 +3,16 @@
 var a = "testing variables";
 var b = ": this is a test";
 
-var a = "test 2";
+var a =  "test 2";
 
 {
-  var a = "test 3";
-  var a = "test 4";
-  print a + b;
+ var a = 12;
+ if(a> 12){
+  print a;
+ } else {
+  print b;
+ }
+
 }
 
 print a + b;
