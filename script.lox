@@ -3,4 +3,12 @@
 var a = "testing variables";
 var b = ": this is a test";
 
+var a = "test 2";
+
+{
+  var a = "test 3";
+  var a = "test 4";
+  print a + b;
+}
+
 print a + b;
