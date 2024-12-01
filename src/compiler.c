@@ -42,7 +42,14 @@ typedef struct {
   int depth;
 } Local;
 
+typedef enum {
+  TYPE_FUNCTION,
+  TYPE_SCRIPT // represents the top level script, technically not a func
+} FunctionType;
+
 typedef struct {
+  ObjFunction *function;
+  FunctionType type;
   Local locals[UINT8_COUNT];
   int localCount;
   int scopeDepth;
@@ -66,13 +73,21 @@ static uint8_t identifierConstant(Token *name);
 Compiler *current = NULL;
 Chunk *compilingChunk;
 
-static void initCompiler(Compiler *compiler) {
+static void initCompiler(Compiler *compiler, FunctionType type) {
+  compiler->function = NULL;
+  compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+  compiler->function = newFunction();
   current = compiler;
+
+  Local *local = &current->locals[current->localCount++];
+  local->depth = 0;
+  local->name.start = "";
+  local->name.length = 0;
 }
 
-static Chunk *currentChunk() { return compilingChunk; }
+static Chunk *currentChunk() { return &current->function->chunk; }
 
 static void error(const char *message, Token *token) {
   // panic mode
@@ -162,13 +177,19 @@ static void patchJump(uint8_t slot) {
   currentChunk()->code[slot + 1] = gap & 0xff;
 }
 
-static void endCompiler() {
+static ObjFunction *endCompiler() {
   emitByte(OP_RETURN);
+  ObjFunction *function = current->function;
+
 #ifdef DEBUG_PRINT_CODE
   if (!parser.hasError) {
-    disassembleChunk(currentChunk(), "code");
+    disassembleChunk(currentChunk(), function->name != NULL
+                                         ? function->name->chars
+                                         : "<script>");
   }
 #endif /* ifdef DEBUG_PRINT_CODE */
+
+  return function;
 }
 
 static void synchronize() {
@@ -326,7 +347,7 @@ static void forStatement() {
   statement();
   emitLoop(loopStart);
 
-  if (exitJump != -1){
+  if (exitJump != -1) {
     patchJump(exitJump);
     emitByte(OP_POP);
   }
@@ -642,11 +663,10 @@ static void defineVariable(uint8_t global) {
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
-bool compile(const char *source, Chunk *chunk) {
+ObjFunction *compile(const char *source) {
   initScanner(source);
   Compiler compiler;
-  initCompiler(&compiler);
-  compilingChunk = chunk;
+  initCompiler(&compiler, TYPE_SCRIPT);
 
   parser.hasError = false;
   parser.panicMode = false;
@@ -656,7 +676,7 @@ bool compile(const char *source, Chunk *chunk) {
     declaration();
   }
 
-  endCompiler();
+  ObjFunction *function = endCompiler();
 
-  return !parser.hasError;
+  return parser.hasError ? NULL : function;
 }
