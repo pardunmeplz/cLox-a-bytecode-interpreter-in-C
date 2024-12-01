@@ -285,6 +285,49 @@ static void ifStatement() {
   patchJump(elseJump);
 }
 
+static void forStatement() {
+
+  beginScope();
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after for");
+  // declaration
+  if (!match(TOKEN_SEMICOLON)) {
+    declaration();
+  }
+
+  uint16_t loopContinuation = currentChunk()->count;
+
+  // condition
+  if (!match(TOKEN_SEMICOLON)) {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' at end of condition");
+  } else {
+    // condition is true if absent
+    emitByte(OP_TRUE);
+  }
+
+  int exitJump = emitJump(OP_JUMP_IF_FALSE);
+  emitByte(OP_POP);
+  // skip the interation expression at start
+  int skipJump = emitJump(OP_JUMP);
+  uint16_t loopStart = currentChunk()->count;
+
+  if (!match(TOKEN_RIGHT_PAREN)) {
+    expression();
+    emitByte(OP_POP);
+    consume(TOKEN_RIGHT_PAREN, "Expect ')' at end of for statement");
+  }
+  emitLoop(loopContinuation);
+
+  patchJump(skipJump);
+
+  statement();
+  emitLoop(loopStart);
+
+  patchJump(exitJump);
+  emitByte(OP_POP);
+  endScope();
+}
+
 static void statement() {
 
   if (match(TOKEN_PRINT)) {
@@ -297,6 +340,8 @@ static void statement() {
     ifStatement();
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
+  } else if (match(TOKEN_FOR)) {
+    forStatement();
   } else {
     expressionStatement();
   }
