@@ -289,42 +289,47 @@ static void forStatement() {
 
   beginScope();
   consume(TOKEN_LEFT_PAREN, "Expect '(' after for");
-  // declaration
-  if (!match(TOKEN_SEMICOLON)) {
-    declaration();
+
+  // initizlizer
+  if (match(TOKEN_SEMICOLON)) {  // no initializer
+  } else if (match(TOKEN_VAR)) { // var declaration in initializer
+    varDeclaration();
+  } else { // since only expression statements and var declarations are allowed
+    expressionStatement();
   }
 
-  uint16_t loopContinuation = currentChunk()->count;
+  uint16_t loopStart = currentChunk()->count;
 
   // condition
+  int exitJump = -1; // in case we don't have condition
   if (!match(TOKEN_SEMICOLON)) {
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' at end of condition");
-  } else {
-    // condition is true if absent
-    emitByte(OP_TRUE);
+    exitJump = emitJump(OP_JUMP_IF_FALSE);
+    emitByte(OP_POP);
   }
 
-  int exitJump = emitJump(OP_JUMP_IF_FALSE);
-  emitByte(OP_POP);
   // skip the interation expression at start
-  int skipJump = emitJump(OP_JUMP);
-  uint16_t loopStart = currentChunk()->count;
 
   if (!match(TOKEN_RIGHT_PAREN)) {
+    int skipJump = emitJump(OP_JUMP);
+    uint16_t middleJump = currentChunk()->count;
     expression();
     emitByte(OP_POP);
     consume(TOKEN_RIGHT_PAREN, "Expect ')' at end of for statement");
-  }
-  emitLoop(loopContinuation);
 
-  patchJump(skipJump);
+    emitLoop(loopStart);
+    loopStart = middleJump;
+    patchJump(skipJump);
+  }
 
   statement();
   emitLoop(loopStart);
 
-  patchJump(exitJump);
-  emitByte(OP_POP);
+  if (exitJump != -1){
+    patchJump(exitJump);
+    emitByte(OP_POP);
+  }
   endScope();
 }
 
