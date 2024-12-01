@@ -47,12 +47,13 @@ typedef enum {
   TYPE_SCRIPT // represents the top level script, technically not a func
 } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
   ObjFunction *function;
   FunctionType type;
   Local locals[UINT8_COUNT];
   int localCount;
   int scopeDepth;
+  struct Compiler *enclosing;
 } Compiler;
 
 struct {
@@ -74,12 +75,17 @@ Compiler *current = NULL;
 Chunk *compilingChunk;
 
 static void initCompiler(Compiler *compiler, FunctionType type) {
+  compiler->enclosing = current;
   compiler->function = NULL;
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
+  if (type != TYPE_SCRIPT) {
+    current->function->name =
+        copyString(parser.previous.start, parser.previous.length);
+  }
 
   Local *local = &current->locals[current->localCount++];
   local->depth = 0;
@@ -188,7 +194,7 @@ static ObjFunction *endCompiler() {
                                          : "<script>");
   }
 #endif /* ifdef DEBUG_PRINT_CODE */
-
+  current = current->enclosing;
   return function;
 }
 
@@ -240,14 +246,10 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
-static void declaration() {
-  if (match(TOKEN_VAR)) {
-    varDeclaration();
-  } else {
-    statement();
-  }
-  if (parser.panicMode)
-    synchronize();
+static void markInitialized() {
+  if (current->scopeDepth == 0)
+    return;
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
 static void block() {
@@ -268,6 +270,61 @@ static void endScope() {
     emitByte(OP_POP);
     current->localCount--;
   }
+}
+
+static uint8_t makeConstant(Value value) {
+  uint8_t constant = addConstant(currentChunk(), value);
+  if (constant > UINT8_MAX) {
+    error("Too many constants in one chunk", &parser.current);
+    return 0;
+  }
+  return constant;
+}
+
+static void function(FunctionType type) {
+  Compiler compiler;
+  initCompiler(&compiler, type);
+  beginScope();
+
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after function name ");
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      current->function->arity++;
+      if (current->function->arity > 255) {
+        error("Can't have more than 255 parameters.", &parser.current);
+      }
+
+      uint8_t constant = parseVariable("Expect parameter name");
+      defineVariable(constant);
+
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after function parameters ");
+
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+  block();
+
+  ObjFunction *function = endCompiler();
+  emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+
+static void funDeclaration() {
+  uint8_t global = parseVariable("Expect function name");
+  markInitialized();
+  function(TYPE_FUNCTION);
+  defineVariable(global);
+}
+
+static void declaration() {
+  if (match(TOKEN_FUN)) {
+    funDeclaration();
+  } else if (match(TOKEN_VAR)) {
+    varDeclaration();
+  } else {
+    statement();
+  }
+  if (parser.panicMode)
+    synchronize();
 }
 
 static void whileStatement() {
@@ -376,15 +433,6 @@ static void statement() {
 static void grouping(bool canAssign) {
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expected ')' at end of expression");
-}
-
-static uint8_t makeConstant(Value value) {
-  uint8_t constant = addConstant(currentChunk(), value);
-  if (constant > UINT8_MAX) {
-    error("Too many constants in one chunk", &parser.current);
-    return 0;
-  }
-  return constant;
 }
 
 static void emitConstant(Value value) {
@@ -649,10 +697,6 @@ static uint8_t parseVariable(char *errorMessage) {
   }
 
   return identifierConstant(&parser.previous);
-}
-
-static void markInitialized() {
-  current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
 static void defineVariable(uint8_t global) {
