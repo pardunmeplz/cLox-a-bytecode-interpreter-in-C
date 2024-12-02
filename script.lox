@@ -1,10 +1,15 @@
 // test comment
 
 
+fun b(){
+  print x;
+}
+
 fun a(){
     var x = 22;
     var y = 22;
     print x + y;
+    b();
 }
 
 a();
