@@ -1,4 +1,4 @@
-#include "../include/compiler.h"
+#include "../include/compiler.h" compiler.c
 #include "../include/debug.h"
 #include "../include/object.h"
 #include "../include/scanner.h"
@@ -183,8 +183,13 @@ static void patchJump(uint8_t slot) {
   currentChunk()->code[slot + 1] = gap & 0xff;
 }
 
-static ObjFunction *endCompiler() {
+static void emitReturn() {
+  emitByte(OP_NIL);
   emitByte(OP_RETURN);
+}
+
+static ObjFunction *endCompiler() {
+  emitReturn();
   ObjFunction *function = current->function;
 
 #ifdef DEBUG_PRINT_CODE
@@ -410,6 +415,15 @@ static void forStatement() {
   }
   endScope();
 }
+static void returnStatemnt() {
+  if (match(TOKEN_SEMICOLON)) {
+    emitReturn();
+  } else {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' at end of return statement.");
+    emitByte(OP_RETURN);
+  }
+}
 
 static void statement() {
 
@@ -423,6 +437,11 @@ static void statement() {
     ifStatement();
   } else if (match(TOKEN_WHILE)) {
     whileStatement();
+  } else if (match(TOKEN_RETURN)) {
+    if (current->type == TYPE_SCRIPT) {
+      error("Can' return from top-level code.", &parser.previous);
+    }
+    returnStatemnt();
   } else if (match(TOKEN_FOR)) {
     forStatement();
   } else {

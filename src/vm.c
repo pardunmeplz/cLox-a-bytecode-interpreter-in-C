@@ -161,8 +161,22 @@ static InterpretResult run() {
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
 
-    case OP_RETURN:
-      return INTERPRET_OK;
+    case OP_RETURN: {
+      Value result = pop();
+      vm.frameCount--;
+
+      // end of program
+      if (vm.frameCount == 0) {
+        pop();
+        return INTERPRET_OK;
+      }
+
+      // push frame back by 1 and push return val back
+      vm.stackTop = frame->slots;
+      push(result);
+      frame = &vm.frames[vm.frameCount - 1];
+      break;
+    }
 
     case OP_POP:
       pop();
