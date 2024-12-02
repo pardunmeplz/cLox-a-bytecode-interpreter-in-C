@@ -2,7 +2,9 @@
 
 
 fun a(){
-  print 22;
+    var x = 22;
+    var y = 22;
+    print x + y;
 }
 
 a();
