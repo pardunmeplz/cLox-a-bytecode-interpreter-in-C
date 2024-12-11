@@ -1,4 +1,4 @@
-#include "../include/compiler.h" compiler.c
+#include "../include/compiler.h"
 #include "../include/debug.h"
 #include "../include/object.h"
 #include "../include/scanner.h"

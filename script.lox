@@ -1,15 +1,13 @@
 // test comment
 
 
-fun b(){
-  print x;
+var init = clock();
+
+var a = 0;
+
+while(a < 10000){
+a = a+1;
+print a;
 }
 
-fun a(){
-    var x = 22;
-    var y = 22;
-    print x + y;
-    b();
-}
-
-a();
+print clock() - init;
