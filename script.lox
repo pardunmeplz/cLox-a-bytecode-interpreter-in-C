@@ -1,13 +1,8 @@
-// test comment
-
-
-var init = clock();
-
-var a = 0;
-
-while(a < 10000){
-a = a+1;
-print a;
+fun fib(n) {
+  if (n < 2) return n;
+  return fib(n - 2) + fib(n - 1);
 }
 
-print clock() - init;
+var start = clock();
+print fib(35);
+print clock() - start;
