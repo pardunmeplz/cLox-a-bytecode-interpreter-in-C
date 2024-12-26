@@ -18,7 +18,13 @@
 #define AS_FUNCTION(value) ((ObjFunction *)AS_OBJ(value))
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
 
-typedef enum { OBJ_STRING, OBJ_FUNCTION, OBJ_NATIVE, OBJ_CLOSURE } ObjType;
+typedef enum {
+  OBJ_STRING,
+  OBJ_FUNCTION,
+  OBJ_NATIVE,
+  OBJ_CLOSURE,
+  OBJ_UPVALUE
+} ObjType;
 
 struct Obj {
   ObjType type;
@@ -39,9 +45,15 @@ struct ObjString {
   uint32_t hash;
 };
 
+typedef struct ObjUpvalue {
+  Obj obj;
+  Value *location;
+} ObjUpvalue;
+
 typedef struct {
   Obj obj;
   int arity;
+  int upvalueCount;
   Chunk chunk;
   ObjString *name;
 } ObjFunction;
@@ -49,6 +61,8 @@ typedef struct {
 typedef struct {
   Obj obj;
   ObjFunction *function;
+  ObjUpvalue **upvalues;
+  int upvalueCount;
 } ObjClosure;
 
 static inline bool isObjType(Value value, ObjType type) {
@@ -57,6 +71,7 @@ static inline bool isObjType(Value value, ObjType type) {
 
 ObjString *takeString(char *chars, int length);
 ObjString *copyString(const char *chars, int length);
+ObjUpvalue *newUpvalue(Value *slot);
 void printObject(Value value);
 ObjString *tableFindString(Table *table, const char *chars, int length,
                            uint32_t hash);
