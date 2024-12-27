@@ -1,8 +1,13 @@
 fun outer() {
-  var x = "outside";
+  var x = 1;
   fun inner() {
     print x;
+    x = x+1;
   }
-  inner();
+  return inner;
 }
-outer();
+var counter = outer();
+
+counter();
+counter();
+counter();
