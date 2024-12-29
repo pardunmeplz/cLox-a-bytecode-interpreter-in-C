@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "../include/compiler.h"
 #include "../include/memory.h"
 #include "../include/object.h"
 #include "../include/vm.h"
@@ -71,12 +72,103 @@ void freeObjects() {
     freeObject(object);
     object = next;
   }
+  free(vm.grayStack);
+}
+
+void markObject(Obj *object) {
+  if (object == NULL || object->isMarked)
+    return;
+
+#ifdef DEBUG_LOG_GC
+  printf("%p mark ", (void *)object);
+  printValue(OBJ_VAL(object));
+  printf("\n");
+#endif
+  object->isMarked = true;
+
+  if (vm.grayCapacity < vm.grayCount + 1) {
+    vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
+    vm.grayStack =
+        (Obj **)realloc(vm.grayStack, sizeof(Obj *) * vm.grayCapacity);
+    if (vm.grayStack == NULL)
+      exit(1);
+  }
+}
+
+void markValue(Value value) {
+  if (IS_OBJ(value))
+    markObject(AS_OBJ(value));
+}
+
+static void markRoots() {
+  for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
+    markValue(*slot);
+  }
+
+  for (int i = 0; i < vm.frameCount; i++) {
+    markObject((Obj *)vm.frames[i].closure);
+  }
+
+  for (ObjUpvalue *upvalue = vm.openUpvalues; upvalue != NULL;
+       upvalue = upvalue->next) {
+    markObject((Obj *)upvalue);
+  }
+
+  markTable(&vm.globals);
+  markCompilerRoots();
+}
+
+void markArray(ValueArray *value) {
+  for (int i = 0; i < value->count; i++) {
+    markValue(value->values[i]);
+  }
+}
+
+static void blackenObject(Obj *object) {
+#ifdef DEBUG_LOG_GC
+  printf("%p blacken ", (void *)object);
+  printValue(OBJ_VAL(object));
+  printf("\n");
+#endif
+  printf("%p blacken ", (void *)object);
+  printValue(OBJ_VAL(object));
+  printf("\n");
+  switch (object->type) {
+  case OBJ_FUNCTION: {
+    ObjFunction *function = (ObjFunction *)object;
+    markObject((Obj *)function->name);
+    markArray(&function->chunk.constants);
+    break;
+  }
+  case OBJ_CLOSURE: {
+    ObjClosure *closure = (ObjClosure *)object;
+    markObject((Obj *)closure->function);
+    for (int i = 0; i < closure->upvalueCount; i++) {
+      markObject((Obj *)closure->upvalues[i]);
+    }
+    break;
+  }
+  case OBJ_UPVALUE:
+    markValue(((ObjUpvalue *)object)->closed);
+    break;
+  default:
+    break;
+  }
+}
+
+static void traceReferences() {
+  while (vm.grayCount > 0) {
+    blackenObject(vm.grayStack[--vm.grayCount]);
+  }
 }
 
 void collectGarbage() {
 #ifdef DEBUG_LOG_GC
   printf("-- gc begin\n");
 #endif /* ifdef DEBUG_LOG_GC */
+
+  markRoots();
+  traceReferences();
 
 #ifdef DEBUG_LOG_GC
   printf("-- gc end\n");

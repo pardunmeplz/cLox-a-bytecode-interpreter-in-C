@@ -1,5 +1,6 @@
 #include "../include/compiler.h"
 #include "../include/debug.h"
+#include "../include/memory.h"
 #include "../include/object.h"
 #include "../include/scanner.h"
 #include "../include/value.h"
@@ -821,4 +822,13 @@ ObjFunction *compile(const char *source) {
   ObjFunction *function = endCompiler();
 
   return parser.hasError ? NULL : function;
+}
+
+void markCompilerRoots() {
+
+  Compiler *compiler = current;
+  while (compiler != NULL) {
+    markObject((Obj *)compiler->function);
+    compiler = compiler->enclosing;
+  }
 }

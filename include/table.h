@@ -27,5 +27,6 @@ bool tableSet(Table *table, ObjString *key, Value value);
 void tableAddAll(Table *from, Table *to);
 bool tableGet(Table *table, ObjString *key, Value *value);
 bool tableDelete(Table *table, ObjString *key);
+void markTable(Table *table);
 
 #endif // !clox_table_h
