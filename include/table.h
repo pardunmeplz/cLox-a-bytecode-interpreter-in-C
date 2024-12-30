@@ -28,5 +28,6 @@ void tableAddAll(Table *from, Table *to);
 bool tableGet(Table *table, ObjString *key, Value *value);
 bool tableDelete(Table *table, ObjString *key);
 void markTable(Table *table);
+void tableRemoveWhite(Table *table);
 
 #endif // !clox_table_h
