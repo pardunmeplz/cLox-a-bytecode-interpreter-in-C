@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdlib.h>
 
 #include "../include/compiler.h"
@@ -10,12 +11,17 @@
 #include <stdio.h>
 #endif
 
+#define GC_HEAP_GROWTH_FACTOR 2
+
 void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
+  vm.bytesAllocated += newSize - oldSize;
   if (newSize > oldSize) {
 #ifdef DEBUG_STRESS_GC
     collectGarbage();
 #endif
-    collectGarbage();
+    if (vm.bytesAllocated > vm.nextGC) {
+      collectGarbage();
+    }
   }
 
   if (newSize == 0) {
@@ -31,6 +37,8 @@ void *reallocate(void *pointer, size_t oldSize, size_t newSize) {
 void freeObject(Obj *object) {
 #ifdef DEBUG_LOG_GC
   printf("%p free type %d\n", (void *)object, object->type);
+  printObject(OBJ_VAL(object));
+  printf("\n");
 #endif /* ifdef DEBUG_LOG_GC */
 
   switch (object->type) {
@@ -76,7 +84,9 @@ void freeObjects() {
 }
 
 void markObject(Obj *object) {
-  if (object == NULL || object->isMarked)
+  if (object == NULL)
+    return;
+  if (object->isMarked)
     return;
 
 #ifdef DEBUG_LOG_GC
@@ -130,9 +140,6 @@ static void blackenObject(Obj *object) {
   printValue(OBJ_VAL(object));
   printf("\n");
 #endif
-  printf("%p blacken ", (void *)object);
-  printValue(OBJ_VAL(object));
-  printf("\n");
   switch (object->type) {
   case OBJ_FUNCTION: {
     ObjFunction *function = (ObjFunction *)object;
@@ -188,12 +195,18 @@ void collectGarbage() {
   printf("-- gc begin\n");
 #endif /* ifdef DEBUG_LOG_GC */
 
+  size_t before = vm.bytesAllocated;
+
   markRoots();
   traceReferences();
   tableRemoveWhite(&vm.strings);
   sweep();
 
+  vm.nextGC = vm.bytesAllocated * GC_HEAP_GROWTH_FACTOR;
+
 #ifdef DEBUG_LOG_GC
   printf("-- gc end\n");
+  printf("   collected %zu bytes (from %zu to %zu) next at %zu\n",
+         before - vm.bytesAllocated, before, vm.bytesAllocated, vm.nextGC);
 #endif /* ifdef DEBUG_LOG_GC */
 }

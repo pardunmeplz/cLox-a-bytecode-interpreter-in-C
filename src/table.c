@@ -125,8 +125,9 @@ bool tableGet(Table *table, ObjString *key, Value *value) {
 
 void markTable(Table *table) {
   for (int i = 0; i < table->count; i++) {
-    markValue(table->entries->value);
-    markObject((Obj *)table->entries->key);
+    Entry *entry = &table->entries[i];
+    markObject((Obj *)entry->key);
+    markValue(entry->value);
   }
 }
 
