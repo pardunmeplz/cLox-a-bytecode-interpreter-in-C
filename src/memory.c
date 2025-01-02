@@ -49,6 +49,11 @@ void freeObject(Obj *object) {
     break;
   }
 
+  case OBJ_CLASS: {
+    FREE(ObjClass, object);
+    break;
+  }
+
   case OBJ_FUNCTION: {
     ObjFunction *func = (ObjFunction *)object;
     freeChunk(&func->chunk);
@@ -158,7 +163,15 @@ static void blackenObject(Obj *object) {
   case OBJ_UPVALUE:
     markValue(((ObjUpvalue *)object)->closed);
     break;
-  default:
+
+  case OBJ_CLASS: {
+    ObjClass *klass = (ObjClass *)object;
+    markObject((Obj *)(klass->name));
+    break;
+  }
+
+  case OBJ_STRING:
+  case OBJ_NATIVE:
     break;
   }
 }
