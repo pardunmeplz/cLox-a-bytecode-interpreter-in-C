@@ -366,6 +366,10 @@ static InterpretResult run() {
       break;
     }
 
+    case OP_CLASS:
+      push(OBJ_VAL(newClass(READ_STRING())));
+      break;
+
     case OP_GET_UPVALUE: {
       uint8_t slot = READ_BYTE();
       push(*frame->closure->upvalues[slot]->location);
