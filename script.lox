@@ -1,3 +1,9 @@
 
 class testing{}
-print testing();
+var test = testing();
+
+test.field = 22;
+
+print testing;
+print test;
+print test.field;

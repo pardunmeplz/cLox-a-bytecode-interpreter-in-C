@@ -376,6 +376,37 @@ static InterpretResult run() {
       push(OBJ_VAL(newClass(READ_STRING())));
       break;
 
+    case OP_SET_INST: {
+      if (!IS_INSTANCE(peek(1))) {
+        runtimeError("Only instances have fields to access");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjString *name = READ_STRING();
+      ObjInstance *obj = AS_INSTANCE(peek(1));
+
+      Value value = pop();
+      tableSet(&(obj->fields), name, value);
+      pop();
+      push(value);
+      break;
+    }
+    case OP_GET_INST: {
+      if (!IS_INSTANCE(peek(0))) {
+        runtimeError("Only instances have properties to access");
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      ObjInstance *obj = AS_INSTANCE(peek(0));
+      ObjString *name = READ_STRING();
+      Value field;
+      if (tableGet(&(obj->fields), name, &field)) {
+        pop();
+        push(field);
+        break;
+      }
+      runtimeError("Undefined property '%s'.", name->chars);
+      return INTERPRET_RUNTIME_ERROR;
+    }
+
     case OP_GET_UPVALUE: {
       uint8_t slot = READ_BYTE();
       push(*frame->closure->upvalues[slot]->location);

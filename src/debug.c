@@ -155,6 +155,12 @@ int disassembleInstruction(Chunk *chunk, int offset) {
   case OP_CLASS:
     return constInstruction("OP_CLASS", chunk, offset);
 
+  case OP_GET_INST:
+    return constInstruction("OP_GET_INST", chunk, offset);
+
+  case OP_SET_INST:
+    return constInstruction("OP_SET_INST", chunk, offset);
+
   default:
     printf("Unknown opdcode %d\n", instruction);
     return offset + 1;
