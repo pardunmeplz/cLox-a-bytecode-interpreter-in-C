@@ -133,6 +133,12 @@ static bool callValue(Value callee, int argCount) {
       push(result);
       return true;
     }
+    case OBJ_CLASS: {
+      ObjClass *className = AS_CLASS(callee);
+      vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(className));
+      return true;
+    }
+
     default:
       break;
     }
