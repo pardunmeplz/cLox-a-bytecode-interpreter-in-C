@@ -1,5 +1,10 @@
 
-class testing{}
+class testing{
+  honk(){
+    print "Honkkkk";
+  }
+
+}
 var test = testing();
 
 test.field = 22;
@@ -7,3 +12,5 @@ test.field = 22;
 print testing;
 print test;
 print test.field;
+
+test.honk();

@@ -35,6 +35,7 @@ typedef enum {
   OP_CALL,
   OP_CLOSURE,
   OP_CLASS,
+  OP_METHOD,
   OP_GET_INST,
   OP_SET_INST
 } OpCode;

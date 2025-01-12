@@ -139,6 +139,11 @@ static bool callValue(Value callee, int argCount) {
       return true;
     }
 
+    case OBJ_BOUND_METHOD: {
+      ObjBoundMethod *bound = AS_BOUND_METHOD(callee);
+      return call(bound->method, argCount);
+    }
+
     default:
       break;
     }
@@ -183,6 +188,24 @@ static ObjUpvalue *captureUpvalues(Value *local) {
   }
 
   return createdUpvalue;
+}
+
+static void defineMethod(ObjString *name) {
+  Value method = peek(0);
+  ObjClass *klass = AS_CLASS(peek(1));
+  tableSet(&klass->methods, name, method);
+  pop();
+}
+
+static bool bindMethod(ObjClass *klass, ObjString *name) {
+  Value method;
+  if (!tableGet(&klass->methods, name, &method)) {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
+  }
+  ObjBoundMethod *bound = newBoundMethod(pop(), AS_CLOSURE(method));
+  push(OBJ_VAL(bound));
+  return true;
 }
 
 static void closeUpvalues(Value *last) {
@@ -376,6 +399,10 @@ static InterpretResult run() {
       push(OBJ_VAL(newClass(READ_STRING())));
       break;
 
+    case OP_METHOD:
+      defineMethod(READ_STRING());
+      break;
+
     case OP_SET_INST: {
       if (!IS_INSTANCE(peek(1))) {
         runtimeError("Only instances have fields to access");
@@ -398,13 +425,19 @@ static InterpretResult run() {
       ObjInstance *obj = AS_INSTANCE(peek(0));
       ObjString *name = READ_STRING();
       Value field;
+      // find variable in instance
       if (tableGet(&(obj->fields), name, &field)) {
         pop();
         push(field);
         break;
       }
-      runtimeError("Undefined property '%s'.", name->chars);
-      return INTERPRET_RUNTIME_ERROR;
+
+      // find method in class & bind it if found
+      if (!bindMethod(obj->className, name)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      break;
     }
 
     case OP_GET_UPVALUE: {
