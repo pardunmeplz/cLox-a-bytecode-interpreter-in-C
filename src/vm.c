@@ -228,6 +228,27 @@ static void closeUpvalues(Value *last) {
   }
 }
 
+static bool invokeFromClass(ObjClass *className, ObjString *name,
+                            int argCount) {
+  Value method;
+  if (!tableGet(&className->methods, name, &method)) {
+    runtimeError("Undefined property '%s'.", name->chars);
+    return false;
+  }
+  return call(AS_CLOSURE(method), argCount);
+}
+
+static bool invoke(ObjString *name, int argCount) {
+  Value receiver = peek(argCount);
+  if (!IS_INSTANCE(peek(0))) {
+    runtimeError("Only instances have properties to access");
+    return false;
+  }
+
+  ObjInstance *instance = AS_INSTANCE(receiver);
+  return invokeFromClass(instance->className, name, argCount);
+}
+
 static InterpretResult run() {
   CallFrame *frame = &vm.frames[vm.frameCount - 1];
 
@@ -511,6 +532,16 @@ static InterpretResult run() {
     case OP_LESS:
       BINARY_OP(BOOL_VAL, <);
       break;
+
+    case OP_INVOKE: {
+      ObjString *method = READ_STRING();
+      int argCount = READ_BYTE();
+      if (!invoke(method, argCount)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      frame = &vm.frames[vm.frameCount - 1];
+      break;
+    }
     }
     }
   }
