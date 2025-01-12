@@ -1,13 +1,14 @@
 
 class testing{
   honk(){
-    print "Honkkkk";
+    print this.name + "says Honkkkk";
   }
 
 }
 var test = testing();
 
 test.field = 22;
+test.name = "Quacker ";
 
 print testing;
 print test;

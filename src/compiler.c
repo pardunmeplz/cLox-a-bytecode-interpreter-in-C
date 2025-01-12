@@ -43,6 +43,10 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
+typedef struct ClassCompiler {
+  struct ClassCompiler *enclosing;
+} ClassCompiler;
+
 typedef struct {
   Token name;
   int depth;
@@ -52,6 +56,7 @@ typedef struct {
 typedef enum {
   TYPE_FUNCTION,
   TYPE_METHOD,
+  TYPE_INITIALIZER,
   TYPE_SCRIPT // represents the top level script, technically not a func
 } FunctionType;
 
@@ -84,6 +89,7 @@ static void namedVariable(Token name, bool canAssign);
 
 Compiler *current = NULL;
 Chunk *compilingChunk;
+ClassCompiler *currentClass = NULL;
 
 static void initCompiler(Compiler *compiler, FunctionType type) {
   compiler->enclosing = current;
@@ -103,6 +109,13 @@ static void initCompiler(Compiler *compiler, FunctionType type) {
   local->name.start = "";
   local->name.length = 0;
   local->isCaptured = false;
+  if (type != TYPE_FUNCTION) {
+    local->name.start = "this";
+    local->name.length = 4;
+  } else {
+    local->name.start = "";
+    local->name.length = 0;
+  }
 }
 
 static Chunk *currentChunk() { return &current->function->chunk; }
@@ -196,7 +209,11 @@ static void patchJump(uint8_t slot) {
 }
 
 static void emitReturn() {
-  emitByte(OP_NIL);
+  if (current->type == TYPE_INITIALIZER) {
+    emitBytes(OP_GET_LOCAL, 0);
+  } else {
+    emitByte(OP_NIL);
+  }
   emitByte(OP_RETURN);
 }
 
@@ -345,7 +362,11 @@ static void method() {
   consume(TOKEN_IDENTIFIER, "Expect method name");
   uint8_t constant = identifierConstant(&parser.previous);
 
-  FunctionType type = TYPE_FUNCTION;
+  FunctionType type = TYPE_METHOD;
+  if (parser.previous.length == 4 &&
+      memcmp(parser.previous.start, "init", 4) == 0) {
+    type = TYPE_INITIALIZER;
+  }
   function(type);
   emitBytes(OP_METHOD, constant);
 }
@@ -358,6 +379,11 @@ static void classDeclaration() {
 
   emitBytes(OP_CLASS, nameConstant);
   defineVariable(nameConstant);
+
+  ClassCompiler ClassCompiler;
+  ClassCompiler.enclosing = currentClass;
+  currentClass = &ClassCompiler;
+
   namedVariable(className, false);
 
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body");
@@ -366,6 +392,7 @@ static void classDeclaration() {
   }
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after class body");
   emitByte(OP_POP);
+  currentClass = currentClass->enclosing;
 }
 
 static void declaration() {
@@ -469,6 +496,9 @@ static void returnStatemnt() {
   if (match(TOKEN_SEMICOLON)) {
     emitReturn();
   } else {
+    if (current->type == TYPE_INITIALIZER) {
+      error("can't return a value from an initializer.", &parser.previous);
+    }
     expression();
     consume(TOKEN_SEMICOLON, "Expect ';' at end of return statement.");
     emitByte(OP_RETURN);
@@ -602,6 +632,14 @@ static void namedVariable(Token name, bool canAssign) {
 static void variable(bool canAssign) {
 
   namedVariable(parser.previous, canAssign);
+}
+
+static void _this(bool canAssign) {
+  if (currentClass == NULL) {
+    error("Can't use 'this' outside of a class.", &parser.previous);
+    return;
+  }
+  variable(false);
 }
 
 static void literal(bool canAssign) {
@@ -766,7 +804,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
     [TOKEN_SUPER] = {NULL, NULL, PREC_NONE},
-    [TOKEN_THIS] = {NULL, NULL, PREC_NONE},
+    [TOKEN_THIS] = {_this, NULL, PREC_NONE},
     [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
     [TOKEN_VAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},

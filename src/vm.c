@@ -52,6 +52,8 @@ void initVM() {
   vm.objects = NULL;
   initTable(&vm.strings);
   initTable(&vm.globals);
+  vm.initString = NULL;
+  vm.initString = copyString("init", 4);
   defineNative("clock", clockNative);
   vm.grayCapacity = 0;
   vm.grayCount = 0;
@@ -63,6 +65,7 @@ void initVM() {
 void freeVM() {
   freeTable(&vm.strings);
   freeTable(&vm.globals);
+  vm.initString = NULL;
   freeObjects();
 }
 
@@ -136,11 +139,19 @@ static bool callValue(Value callee, int argCount) {
     case OBJ_CLASS: {
       ObjClass *className = AS_CLASS(callee);
       vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(className));
+      Value initializer;
+      if (tableGet(&className->methods, vm.initString, &initializer)) {
+        return call(AS_CLOSURE(initializer), argCount);
+      } else if (argCount != 0) {
+        runtimeError("Expected 0 arguments but got %d", argCount);
+        return false;
+      }
       return true;
     }
 
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod *bound = AS_BOUND_METHOD(callee);
+      vm.stackTop[-argCount - 1] = bound->receiver;
       return call(bound->method, argCount);
     }
 
