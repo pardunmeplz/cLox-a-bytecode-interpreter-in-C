@@ -86,6 +86,8 @@ static void defineVariable(uint8_t global);
 static uint8_t identifierConstant(Token *name);
 static void declareVariable();
 static void namedVariable(Token name, bool canAssign);
+static void variable(bool canAssign);
+static bool identifiersEqual(Token *a, Token *b);
 
 Compiler *current = NULL;
 Chunk *compilingChunk;
@@ -385,6 +387,18 @@ static void classDeclaration() {
   currentClass = &ClassCompiler;
 
   namedVariable(className, false);
+
+  if (match(TOKEN_LESS)) {
+    consume(TOKEN_IDENTIFIER, "Expected superclass name");
+    variable(false);
+
+    if (identifiersEqual(&className, &parser.previous)) {
+      error("A class can not inherit from itself", &parser.previous);
+    }
+
+    namedVariable(className, false);
+    emitByte(OP_INHERIT);
+  }
 
   consume(TOKEN_LEFT_BRACE, "Expect '{' before class body");
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
