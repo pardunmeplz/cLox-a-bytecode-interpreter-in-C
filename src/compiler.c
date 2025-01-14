@@ -382,6 +382,22 @@ static Token syntheticToken(const char *text) {
   return token;
 }
 
+static uint8_t argumentList() {
+  uint8_t argCount = 0;
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      expression();
+      if (argCount == 255) {
+        error("Can't have more than 255 aguments.", &parser.previous);
+      }
+      argCount++;
+
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  return argCount;
+}
+
 static void _super(bool canAssign) {
   if (currentClass == NULL)
     error("Can't use 'super' outside of a class.", &parser.previous);
@@ -392,6 +408,14 @@ static void _super(bool canAssign) {
   uint8_t name = identifierConstant(&parser.previous);
 
   namedVariable(syntheticToken("this"), false);
+
+  if (match(TOKEN_LEFT_PAREN)) {
+    uint8_t argCount = argumentList();
+    namedVariable(syntheticToken("super"), false);
+    emitBytes(OP_INVOKE_SUPER, name);
+    emitByte(argCount);
+    return;
+  }
   namedVariable(syntheticToken("super"), false);
   emitBytes(OP_GET_SUPER, name);
 }
@@ -703,22 +727,6 @@ static void literal(bool canAssign) {
   default:
     return;
   }
-}
-
-static uint8_t argumentList() {
-  uint8_t argCount = 0;
-  if (!check(TOKEN_RIGHT_PAREN)) {
-    do {
-      expression();
-      if (argCount == 255) {
-        error("Can't have more than 255 aguments.", &parser.previous);
-      }
-      argCount++;
-
-    } while (match(TOKEN_COMMA));
-  }
-  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
-  return argCount;
 }
 
 static void call(bool canAssign) {

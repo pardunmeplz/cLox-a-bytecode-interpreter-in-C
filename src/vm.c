@@ -561,6 +561,19 @@ static InterpretResult run() {
       break;
     }
 
+    case OP_INVOKE_SUPER: {
+      ObjString *method = READ_STRING();
+      int argCount = READ_BYTE();
+      ObjClass *super = AS_CLASS(pop());
+
+      if (!invokeFromClass(super, method, argCount)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+
+      frame = &vm.frames[vm.frameCount - 1];
+      break;
+    }
+
     case OP_GET_SUPER: {
       ObjString *method = READ_STRING();
       ObjClass *super = AS_CLASS(pop());
