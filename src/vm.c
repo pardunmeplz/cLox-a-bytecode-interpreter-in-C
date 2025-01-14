@@ -560,6 +560,16 @@ static InterpretResult run() {
       frame = &vm.frames[vm.frameCount - 1];
       break;
     }
+
+    case OP_GET_SUPER: {
+      ObjString *method = READ_STRING();
+      ObjClass *super = AS_CLASS(pop());
+
+      if (!bindMethod(super, method)) {
+        return INTERPRET_RUNTIME_ERROR;
+      }
+      break;
+    }
     }
     }
   }

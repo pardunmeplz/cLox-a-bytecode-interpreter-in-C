@@ -5,13 +5,17 @@ class testing{
   }
 
 }
-var test = testing();
+
+class subTesting < testing{
+  honk(){
+    print this.name + "says Haaank";
+    super.honk();
+  }
+}
+
+var test = subTesting();
 
 test.field = 22;
 test.name = "Quacker ";
-
-print testing;
-print test;
-print test.field;
 
 test.honk();

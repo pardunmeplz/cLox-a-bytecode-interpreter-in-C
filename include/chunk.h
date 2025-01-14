@@ -39,6 +39,7 @@ typedef enum {
   OP_GET_INST,
   OP_SET_INST,
   OP_INVOKE,
+  OP_GET_SUPER,
   OP_INHERIT
 } OpCode;
 
